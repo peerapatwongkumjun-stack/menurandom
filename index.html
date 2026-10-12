@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Menu Picker - วันนี้กินอะไรดี ในงบที่มี</title>
+  
+  <!-- SEO & Security Meta Tags -->
+  <meta name="description" content="เว็บแอปพลิเคชันสำหรับสุ่มเมนูอาหารตามงบประมาณและประเภทอาหาร ช่วยตัดสินใจเลือกเมนูมื้อนี้">
+  <meta name="robots" content="index, follow">
+  <meta name="author" content="Menu Picker">
+  <meta http-equiv="X-Content-Type-Options" content="nosniff">
+  
+  <!-- Open Graph ป้องกันการถูกจัดเป็นเว็บหลอกลวง -->
+  <meta property="og:title" content="Menu Picker - วันนี้กินอะไรดี ในงบที่มี">
+  <meta property="og:description" content="สุ่มเมนูอาหารตามงบประมาณและประเภทอาหาร">
+  <meta property="og:type" content="website">
+
+  <!-- Favicon แบบ SVG Inline Data URI ป้องกัน 404 Error -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍽️</text></svg>">
+
+  <style>
+    /* การตั้งค่าพื้นฐาน */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    body {
+      background-color: #f7f9fc;
+      color: #333;
+      display: flex;
+      justify-content: center;
+      padding: 24px 16px;
+      position: relative;
+      min-height: 100vh;
+    }
+
+    /* กล่องแจ้งเตือนแบบเรียลไทม์ (Toast) */
+    .toast {
+      position: fixed;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-100px);
+      background-color: #323232;
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: 24px;
+      font-size: 14px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      transition: transform 0.3s ease, opacity 0.3s ease;
+      opacity: 0;
+      pointer-events: none;
+      z-index: 999;
+    }
+
+    .toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 480px;
+      background: #ffffff;
+      padding: 24px;
+      border-radius: 16px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+      height: fit-content;
+    }
+
+    /* ส่วนหัวเว็บไซต์ */
+    .header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .site-title {
+      font-size: 28px;
+      color: #e65100;
+      margin-bottom: 4px;
+    }
+
+    .site-subtitle {
+      text-align: center;
+      font-size: 14px;
+      color: #666;
+    }
+
+    /* ส่วนตัวกรองงบและประเภทอาหาร */
+    .filter-section {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .form-group label {
+      font-size: 14px;
+      font-weight: 600;
+      color: #444;
+    }
+
+    .form-group input,
+    .form-group select {
+      padding: 10px 12px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 15px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus {
+      border-color: #ff9800;
+    }
+
+    /* ปุ่มทั่วไป */
+    button {
+      cursor: pointer;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 600;
+      padding: 12px;
+      transition: background-color 0.2s, opacity 0.2s, transform 0.1s;
+    }
+
+    button:active {
+      transform: scale(0.98);
+    }
+
+    button:hover {
+      opacity: 0.9;
+    }
+
+    .btn-primary {
+      background-color: #ff9800;
+      color: #fff;
+      width: 100%;
+    }
+
+    /* ส่วนแสดงผลเมนู */
+    .result-section {
+      border: 1px solid #eee;
+      border-radius: 12px;
+      padding: 16px;
+      text-align: center;
+      margin-bottom: 24px;
+      background: #fafafa;
+    }
+
+    .result-title {
+      font-size: 18px;
+      color: #333;
+      margin-bottom: 12px;
+    }
+
+    .food-image-wrapper {
+      width: 100%;
+      height: 220px;
+      border-radius: 10px;
+      overflow: hidden;
+      margin-bottom: 12px;
+      background-color: #f0f0f0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .food-image-wrapper img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform 0.3s ease;
+    }
+
+    .food-image-wrapper img:hover {
+      transform: scale(1.03);
+    }
+
+    .menu-details {
+      margin-bottom: 16px;
+    }
+
+    .menu-details h3 {
+      font-size: 20px;
+      color: #222;
+      margin-bottom: 6px;
+    }
+
+    .menu-price {
+      font-size: 16px;
+      font-weight: 600;
+      color: #2e7d32;
+    }
+
+    .menu-category {
+      font-size: 13px;
+      color: #777;
+      margin-top: 2px;
+    }
+
+    /* ปุ่มดำเนินการ */
+    .action-buttons {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .btn-secondary {
+      flex: 1;
+      background-color: #757575;
+      color: #fff;
+    }
+
+    .btn-favorite {
+      flex: 1;
+      background-color: #e91e63;
+      color: #fff;
+      transition: background-color 0.2s;
+    }
+
+    .btn-favorite.active {
+      background-color: #c2185b;
+    }
+
+    /* รายการเมนูโปรด */
+    .favorites-section {
+      border-top: 1px dashed #ddd;
+      padding-top: 16px;
+    }
+
+    .favorites-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .favorites-header h3 {
+      font-size: 16px;
+      color: #444;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .badge {
+      background-color: #e91e63;
+      color: #fff;
+      font-size: 12px;
+      padding: 2px 7px;
+      border-radius: 12px;
+    }
+
+    .btn-clear {
+      background: transparent;
+      color: #888;
+      font-size: 12px;
+      padding: 4px 8px;
+      font-weight: normal;
+      border-radius: 4px;
+    }
+
+    .btn-clear:hover {
+      background-color: #fce4ec;
+      color: #d32f2f;
+    }
+
+    .favorites-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    .favorites-list li {
+      background: #f8f9fa;
+      border: 1px solid #eee;
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      animation: fadeIn 0.25s ease-in-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .fav-item-info {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .fav-item-price {
+      font-weight: 600;
+      color: #2e7d32;
+      font-size: 13px;
+    }
+
+    .btn-delete {
+      background: none;
+      color: #d32f2f;
+      padding: 4px 8px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    .btn-delete:hover {
+      background-color: #ffebee;
+      border-radius: 4px;
+    }
+
+    .favorites-list li.empty-text {
+      background: none;
+      border: none;
+      color: #999;
+      justify-content: center;
+    }
+  </style>
+</head>
+<body>
+  <!-- กล่องแจ้งเตือน Toast -->
+  <div id="toast" class="toast"></div>
+
+  <div class="container">
+    <!-- ส่วนหัวเว็บไซต์ -->
+    <header class="header">
+      <h1 class="site-title">Menu Picker</h1>
+      <p class="site-subtitle">" วันนี้กินอะไรดี ในงบที่มี "</p>
+    </header>
+
+    <!-- ส่วนกำหนดเงื่อนไข -->
+    <section class="filter-section">
+      <div class="form-group">
+        <label for="budgetInput">จำนวนเงิน (บาท):</label>
+        <input type="number" id="budgetInput" placeholder="กรอกจำนวนเงิน เช่น 50" min="0" autocomplete="off">
+        <p class="site-subtitle" style="font-size: 12px; margin-top: 4px;">*ถ้าไม่จำกัดงบ ไม่ต้องกรอกจำนวนเงิน</p>
+      </div>
+
+      <div class="form-group">
+        <label for="categorySelect">ประเภทอาหาร:</label>
+        <select id="categorySelect">
+          <option value="all">ทุกประเภท</option>
+          <option value="อาหารจานเดียว">อาหารจานเดียว / ตามสั่ง</option>
+          <option value="ก๋วยเตี๋ยว">ก๋วยเตี๋ยว / เส้น</option>
+          <option value="กับข้าว/แกง">ต้ม/แกง/กับข้าว</option>
+          <option value="ฟาสต์ฟู้ด">ฟาสต์ฟู้ด / กินเล่น</option>
+          <option value="ของหวาน">ของหวาน</option>
+          <option value="เครื่องดื่ม">เครื่องดื่ม</option>
+        </select>
+      </div>
+
+      <button id="randomBtn" class="btn-primary">สุ่มเมนู</button>
+    </section>
+
+    <!-- ส่วนแสดงผลเมนู -->
+    <section class="result-section" id="resultCard">
+      <h2 class="result-title">เมนูของคุณ</h2>
+      
+      <div class="food-image-wrapper">
+        <!-- ใส่ referrerpolicy="no-referrer" เพื่อป้องกันการโดนบล็อก Hotlink และ fallback รูปเมื่อเกิดข้อผิดพลาด -->
+        <img id="foodImage" 
+             src="https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=500&auto=format&fit=crop&q=80" 
+             alt="รูปภาพของอาหาร" 
+             referrerpolicy="no-referrer"
+             loading="lazy">
+      </div>
+
+      <div class="menu-details">
+        <h3 id="menuName">กดปุ่มสุ่มเพื่อเริ่มเลือกเมนู</h3>
+        <p id="menuPrice" class="menu-price">-</p>
+        <p id="menuCategory" class="menu-category">-</p>
+      </div>
+
+      <!-- ปุ่มดำเนินการ -->
+      <div class="action-buttons">
+        <button id="reRandomBtn" class="btn-secondary">สุ่มใหม่</button>
+        <button id="saveFavoriteBtn" class="btn-favorite">บันทึกเป็นเมนูโปรด</button>
+      </div>
+      <br>
+      <p class="site-subtitle" style="font-size: 12px;">"ถ้าสุ่มเมนูใหม่ไม่ได้ กรุณาเพิ่มงบประมาณหรือเปลี่ยนประเภท"</p>
+    </section>
+
+    <!-- ส่วนแสดงเมนูโปรด -->
+    <section class="favorites-section">
+      <div class="favorites-header">
+        <h3>⭐ เมนูโปรดของคุณ <span id="favCount" class="badge">0</span></h3>
+        <button id="clearAllFavBtn" class="btn-clear" title="ล้างรายการทั้งหมด">ล้างทั้งหมด</button>
+      </div>
+      <ul id="favoritesList" class="favorites-list">
+        <li class="empty-text">ยังไม่มีเมนูโปรดที่บันทึกไว้</li>
+      </ul>
+    </section>
+  </div>
+
+  <script>
+    // รูปภาพสำรองแบบ SVG (Data URI) ในกรณีที่ลิงก์รูปภาพภายนอกโหลดไม่ได้หรือติด Hotlink Block
+    const FALLBACK_IMAGE = "data:image/svg+xml;charset=UTF-8,%3Csvg%20width%3D%22400%22%20height%3D%22250%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20400%20250%22%20preserveAspectRatio%3D%22none%22%3E%3Cdefs%3E%3Cstyle%20type%3D%22text%2Fcss%22%3E%23holder_text%7Bfill%3A%23888%3Bfont-weight%3Abold%3Bfont-family%3Asans-serif%3Bfont-size%3A20pt%7D%3C%2Fstyle%3E%3C%2Fdefs%3E%3Crect%20width%3D%22400%22%20height%3D%22250%22%20fill%3D%22%23eeeeee%22%3E%3C%2Frect%3E%3Ctext%20x%3D%2250%25%22%20y%3D%2250%25%22%20alignment-baseline%3D%22middle%22%20text-anchor%3D%22middle%22%20id%3D%22holder_text%22%3E%F0%9F%8D%BD%EF%B8%8F%20Menu%20Picker%3C%2Ftext%3E%3C%2Fsvg%3E";
+
+    // ฐานข้อมูลอาหาร (รองรับ fallback image ปลอดภัย ไม่โดนแบน)
+    const foodList = [
+      // อาหารจานเดียว
+      { name: "ข้าวกะเพราหมูสับไข่ดาว", price: 55, category: "อาหารจานเดียว", image: "https://images.unsplash.com/photo-1563245372-f21724e3856d?w=500&auto=format&fit=crop&q=80" },
+      { name: "ข้าวมันไก่ต้ม", price: 50, category: "อาหารจานเดียว", image: "https://images.unsplash.com/photo-1541832676-9b763b0239ab?w=500&auto=format&fit=crop&q=80" },
+      { name: "ข้าวมันไก่ทอด", price: 50, category: "อาหารจานเดียว", image: "https://images.unsplash.com/photo-1626082927389-6cd097cdc6ec?w=500&auto=format&fit=crop&q=80" },
+      { name: "ข้าวผัดหมู", price: 50, category: "อาหารจานเดียว", image: "https://images.unsplash.com/photo-1603133872878-684f208fb84b?w=500&auto=format&fit=crop&q=80" },
+      { name: "ข้าวผัดปู", price: 80, category: "อาหารจานเดียว", image: "https://images.unsplash.com/photo-1512058564366-18510be2db19?w=500&auto=format&fit=crop&q=80" },
+      { name: "ข้าวหมูกรอบผัดพริกเกลือ", price: 70, category: "อาหารจานเดียว", image: "https://images.unsplash.com/photo-1544025162-d76694265947?w=500&auto=format&fit=crop&q=80" },
+      { name: "ข้าวขาหมูคากิ", price: 65, category: "อาหารจานเดียว", image: "https://images.unsplash.com/photo-1541832676-9b763b0239ab?w=500&auto=format&fit=crop&q=80" },
+      { name: "ข้าวหน้าเป็ดย่าง", price: 70, category: "อาหารจานเดียว", image: "https://images.unsplash.com/photo-1518492104633-130d0cc84637?w=500&auto=format&fit=crop&q=80" },
+      { name: "ข้าวหมูแดงหมูกรอบ", price: 60, category: "อาหารจานเดียว", image: "https://images.unsplash.com/photo-1544025162-d76694265947?w=500&auto=format&fit=crop&q=80" },
+      { name: "ข้าวไข่เจียวทรงเครื่อง", price: 35, category: "อาหารจานเดียว", image: "https://images.unsplash.com/photo-1525351484163-7529414344d8?w=500&auto=format&fit=crop&q=80" },
+      { name: "ข้าวผัดพริกแกงหมูกรอบ", price: 65, category: "อาหารจานเดียว", image: "https://images.unsplash.com/photo-1563245372-f21724e3856d?w=500&auto=format&fit=crop&q=80" },
+      { name: "ข้าวผัดต้มยำทะเล", price: 85, category: "อาหารจานเดียว", image: "https://images.unsplash.com/photo-1559847844-5315695dadae?w=500&auto=format&fit=crop&q=80" },
+
+      // ก๋วยเตี๋ยว / เส้น
+      { name: "ก๋วยเตี๋ยวต้มยำน้ำข้น", price: 55, category: "ก๋วยเตี๋ยว", image: "https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=500&auto=format&fit=crop&q=80" },
+      { name: "ก๋วยเตี๋ยวเรือน้ำตกเนื้อ", price: 55, category: "ก๋วยเตี๋ยว", image: "https://images.unsplash.com/photo-1594041680534-e8c8cdebd659?w=500&auto=format&fit=crop&q=80" },
+      { name: "บะหมี่เกี๊ยวหมูแดง", price: 60, category: "ก๋วยเตี๋ยว", image: "https://images.unsplash.com/photo-1585032226651-759b368d7246?w=500&auto=format&fit=crop&q=80" },
+      { name: "ผัดไทยกุ้งสด", price: 75, category: "ก๋วยเตี๋ยว", image: "https://images.unsplash.com/photo-1559314809-0d155014e29e?w=500&auto=format&fit=crop&q=80" },
+      { name: "ผัดซีอิ๊วหมูนุ่มเส้นใหญ่", price: 55, category: "ก๋วยเตี๋ยว", image: "https://images.unsplash.com/photo-1617093727343-374698b1b08d?w=500&auto=format&fit=crop&q=80" },
+      { name: "ราดหน้าหมี่กรอบทะเล", price: 70, category: "ก๋วยเตี๋ยว", image: "https://images.unsplash.com/photo-1582878826629-29b7ad1cdc43?w=500&auto=format&fit=crop&q=80" },
+      { name: "ก๋วยจั๊บญวนหมูยอ", price: 50, category: "ก๋วยเตี๋ยว", image: "https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=500&auto=format&fit=crop&q=80" },
+      { name: "ขนมจีนน้ำยาป่าลูกชิ้น", price: 45, category: "ก๋วยเตี๋ยว", image: "https://images.unsplash.com/photo-1617093727343-374698b1b08d?w=500&auto=format&fit=crop&q=80" },
+
+      // กับข้าว / แกง
+      { name: "ต้มยำกุ้งน้ำข้น", price: 120, category: "กับข้าว/แกง", image: "https://images.unsplash.com/photo-1548943487-a2e4e43b4853?w=500&auto=format&fit=crop&q=80" },
+      { name: "แกงเขียวหวานไก่", price: 65, category: "กับข้าว/แกง", image: "https://images.unsplash.com/photo-1455619452474-d2be8b1e70cd?w=500&auto=format&fit=crop&q=80" },
+      { name: "ต้มจืดเต้าหู้หมูสับสาหร่าย", price: 55, category: "กับข้าว/แกง", image: "https://images.unsplash.com/photo-1547592166-23ac45744acd?w=500&auto=format&fit=crop&q=80" },
+      { name: "แกงส้มชะอมกุ้ง", price: 90, category: "กับข้าว/แกง", image: "https://images.unsplash.com/photo-1548943487-a2e4e43b4853?w=500&auto=format&fit=crop&q=80" },
+
+      // ฟาสต์ฟู้ด / ทานเล่น
+      { name: "เฟรนช์ฟรายส์", price: 39, category: "ฟาสต์ฟู้ด", image: "https://images.unsplash.com/photo-1573080496219-bb080dd4f877?w=500&auto=format&fit=crop&q=80" },
+      { name: "นักเก็ตไก่ทอดกรอบ", price: 49, category: "ฟาสต์ฟู้ด", image: "https://images.unsplash.com/photo-1562967914-608f82629710?w=500&auto=format&fit=crop&q=80" },
+      { name: "ไก่ทอดหาดใหญ่", price: 60, category: "ฟาสต์ฟู้ด", image: "https://images.unsplash.com/photo-1626082927389-6cd097cdc6ec?w=500&auto=format&fit=crop&q=80" },
+      { name: "พิซซ่าชีสมินิ", price: 99, category: "ฟาสต์ฟู้ด", image: "https://images.unsplash.com/photo-1513104890138-7c749659a591?w=500&auto=format&fit=crop&q=80" },
+      { name: "เบอร์เกอร์เนื้อ", price: 50, category: "ฟาสต์ฟู้ด", image: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=500&auto=format&fit=crop&q=80" },
+
+      // ของหวาน
+      { name: "บิงซูผลไม้รวมเกล็ดหิมะ", price: 69, category: "ของหวาน", image: "https://images.unsplash.com/photo-1563805042-7684c019e1cb?w=500&auto=format&fit=crop&q=80" },
+      { name: "ข้าวเหนียวมะม่วงอกร่อง", price: 79, category: "ของหวาน", image: "https://images.unsplash.com/photo-1551024709-8f23befc6f87?w=500&auto=format&fit=crop&q=80" },
+      { name: "โรตีกล้วยหอมราดช็อกโกแลต", price: 40, category: "ของหวาน", image: "https://images.unsplash.com/photo-1519869325930-281384150729?w=500&auto=format&fit=crop&q=80" },
+
+      // เครื่องดื่ม 
+      { name: "ชานมไข่มุกบราวน์ชูการ์", price: 45, category: "เครื่องดื่ม", image: "https://images.unsplash.com/photo-1558857563-b37cf533a18a?w=500&auto=format&fit=crop&q=80" },
+      { name: "ชาเขียวมัทฉะลาเต้เย็น", price: 50, category: "เครื่องดื่ม", image: "https://images.unsplash.com/photo-1536256263959-770b48d82b0a?w=500&auto=format&fit=crop&q=80" },
+      { name: "ชาไทยปั่นหวานมากๆๆๆ", price: 40, category: "เครื่องดื่ม", image: "https://images.unsplash.com/photo-1544787219-7f47ccb76574?w=500&auto=format&fit=crop&q=80" }
+    ];
+
+    // ตัวแปรสถานะ
+    let currentMenu = null;
+    let toastTimeout = null;
+
+    // DOM Elements
+    const budgetInput = document.getElementById("budgetInput");
+    const categorySelect = document.getElementById("categorySelect");
+    const randomBtn = document.getElementById("randomBtn");
+    const reRandomBtn = document.getElementById("reRandomBtn");
+    const saveFavoriteBtn = document.getElementById("saveFavoriteBtn");
+    const clearAllFavBtn = document.getElementById("clearAllFavBtn");
+
+    const foodImage = document.getElementById("foodImage");
+    const menuName = document.getElementById("menuName");
+    const menuPrice = document.getElementById("menuPrice");
+    const menuCategory = document.getElementById("menuCategory");
+    const favoritesList = document.getElementById("favoritesList");
+    const favCountBadge = document.getElementById("favCount");
+    const toast = document.getElementById("toast");
+
+    // ดักจับ Error กรณีรูปภาพภายนอกโหลดไม่ได้ ให้สลับเป็นภาพ SVG สำรองทันที
+    foodImage.addEventListener("error", () => {
+      foodImage.src = FALLBACK_IMAGE;
+    });
+
+    // ดึงข้อมูลรายการโปรดจาก LocalStorage
+    function getStoredFavorites() {
+      try {
+        const data = localStorage.getItem("menuPickerFavorites");
+        return data ? JSON.parse(data) : [];
+      } catch (e) {
+        return [];
+      }
+    }
+
+    // บันทึกรายการโปรดลง LocalStorage
+    function setStoredFavorites(favs) {
+      try {
+        localStorage.setItem("menuPickerFavorites", JSON.stringify(favs));
+      } catch (e) {
+        console.error("Storage error:", e);
+      }
+    }
+
+    // แสดง Toast Message
+    function showToast(message) {
+      toast.textContent = message;
+      toast.classList.add("show");
+      clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(() => {
+        toast.classList.remove("show");
+      }, 2200);
+    }
+
+    // ฟังก์ชันสุ่มเมนู
+    function pickRandomMenu() {
+      const budget = parseFloat(budgetInput.value);
+      const selectedCategory = categorySelect.value;
+
+      // กรองเมนูตามเงื่อนไข
+      const filteredFoods = foodList.filter((item) => {
+        const matchBudget = isNaN(budget) || item.price <= budget;
+        const matchCategory = selectedCategory === "all" || item.category === selectedCategory;
+        return matchBudget && matchCategory;
+      });
+
+      if (filteredFoods.length === 0) {
+        showToast("⚠️ ไม่พบเมนูที่ตรงกับเงื่อนไข ลองเพิ่มงบหรือเปลี่ยนประเภทดูนะ");
+        return;
+      }
+
+      // ป้องกันการสุ่มซ้ำเมนูเดิมติดกัน
+      let candidates = filteredFoods;
+      if (filteredFoods.length > 1 && currentMenu) {
+        candidates = filteredFoods.filter((item) => item.name !== currentMenu.name);
+      }
+
+      const randomIndex = Math.floor(Math.random() * candidates.length);
+      currentMenu = candidates[randomIndex];
+
+      displayMenu(currentMenu);
+    }
+
+    // ฟังก์ชันแสดงผลเมนูที่สุ่มได้
+    function displayMenu(menu) {
+      foodImage.src = menu.image || FALLBACK_IMAGE;
+      foodImage.alt = menu.name;
+      menuName.textContent = menu.name;
+      menuPrice.textContent = `ราคาประมาณ: ${menu.price} บาท`;
+      menuCategory.textContent = `หมวดหมู่: ${menu.category}`;
+
+      updateFavoriteButtonState();
+    }
+
+    // อัปเดตสถานะปุ่มเมนูโปรด
+    function updateFavoriteButtonState() {
+      if (!currentMenu) {
+        saveFavoriteBtn.textContent = "บันทึกเป็นเมนูโปรด";
+        saveFavoriteBtn.classList.remove("active");
+        return;
+      }
+
+      const favorites = getStoredFavorites();
+      const isFav = favorites.some((item) => item.name === currentMenu.name);
+
+      if (isFav) {
+        saveFavoriteBtn.textContent = "❤️ บันทึกแล้ว (คลิกเพื่อยกเลิก)";
+        saveFavoriteBtn.classList.add("active");
+      } else {
+        saveFavoriteBtn.textContent = "บันทึกเป็นเมนูโปรด";
+        saveFavoriteBtn.classList.remove("active");
+      }
+    }
+
+    // ฟังก์ชันสลับการบันทึกรายการโปรด
+    function toggleFavorite() {
+      if (!currentMenu) {
+        showToast("⚠️ กรุณากดสุ่มเมนูก่อนทำการบันทึก");
+        return;
+      }
+
+      let favorites = getStoredFavorites();
+      const existingIndex = favorites.findIndex((item) => item.name === currentMenu.name);
+
+      if (existingIndex !== -1) {
+        favorites.splice(existingIndex, 1);
+        setStoredFavorites(favorites);
+        showToast(`ลบ "${currentMenu.name}" ออกจากเมนูโปรดแล้ว`);
+      } else {
+        favorites.unshift(currentMenu);
+        setStoredFavorites(favorites);
+        showToast(`บันทึก "${currentMenu.name}" เป็นเมนูโปรดแล้ว! ⭐`);
+      }
+
+      renderFavorites();
+      updateFavoriteButtonState();
+    }
+
+    // ลบรายการโปรด
+    function removeFavorite(name) {
+      let favorites = getStoredFavorites();
+      favorites = favorites.filter((item) => item.name !== name);
+      setStoredFavorites(favorites);
+      renderFavorites();
+      updateFavoriteButtonState();
+      showToast(`ลบ "${name}" ออกเรียบร้อยแล้ว`);
+    }
+
+    // ล้างรายการโปรดทั้งหมด
+    function clearAllFavorites() {
+      const favorites = getStoredFavorites();
+      if (favorites.length === 0) return;
+
+      if (confirm("ต้องการล้างรายการเมนูโปรดทั้งหมดใช่หรือไม่?")) {
+        setStoredFavorites([]);
+        renderFavorites();
+        updateFavoriteButtonState();
+        showToast("ล้างรายการเมนูโปรดทั้งหมดแล้ว");
+      }
+    }
+
+    // ฟังก์ชันเรนเดอร์รายการเมนูโปรด (แก้ไขให้ปลอดภัยจาก XSS ไม่ใช้ innerHTML ที่รับค่าตรงๆ)
+    function renderFavorites() {
+      const favorites = getStoredFavorites();
+      favCountBadge.textContent = favorites.length;
+      favoritesList.innerHTML = "";
+
+      if (favorites.length === 0) {
+        const emptyLi = document.createElement("li");
+        emptyLi.className = "empty-text";
+        emptyLi.textContent = "ยังไม่มีเมนูโปรดที่บันทึกไว้";
+        favoritesList.appendChild(emptyLi);
+        return;
+      }
+
+      favorites.forEach((item) => {
+        const li = document.createElement("li");
+
+        const infoDiv = document.createElement("div");
+        infoDiv.className = "fav-item-info";
+
+        const iconSpan = document.createElement("span");
+        iconSpan.textContent = "🍽️ ";
+
+        const strongName = document.createElement("strong");
+        strongName.textContent = item.name;
+
+        const priceSpan = document.createElement("span");
+        priceSpan.className = "fav-item-price";
+        priceSpan.textContent = ` (${item.price} บ.)`;
+
+        infoDiv.appendChild(iconSpan);
+        infoDiv.appendChild(strongName);
+        infoDiv.appendChild(priceSpan);
+
+        const delBtn = document.createElement("button");
+        delBtn.className = "btn-delete";
+        delBtn.title = "ลบเมนูนี้";
+        delBtn.textContent = "✖";
+        delBtn.addEventListener("click", () => removeFavorite(item.name));
+
+        li.appendChild(infoDiv);
+        li.appendChild(delBtn);
+        favoritesList.appendChild(li);
+      });
+    }
+
+    // ซิงค์ข้อมูลข้ามแท็บ
+    window.addEventListener("storage", (e) => {
+      if (e.key === "menuPickerFavorites") {
+        renderFavorites();
+        updateFavoriteButtonState();
+      }
+    });
+
+    // ลงทะเบียน Event Listeners
+    randomBtn.addEventListener("click", pickRandomMenu);
+    reRandomBtn.addEventListener("click", pickRandomMenu);
+    saveFavoriteBtn.addEventListener("click", toggleFavorite);
+    clearAllFavBtn.addEventListener("click", clearAllFavorites);
+
+    // เริ่มต้นแสดงผลรายการโปรด
+    renderFavorites();
+  </script>
+</body>
+</html>
